@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang=zh-TW data-theme=light>
+<head>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>PDF Split</title>
+<style>
+:root{--bg:#f5f6f8;--fg:#1f2937;--cd:#fff;--bd:#e3e6ea;--in:#fff;--bl:#2563eb;--hn:#64748b;--gb:#eef1f5;--gf:#1f2937;--rb:#fff;--ab:#eff6ff;--ds:#f1f5f9;--df:#94a3b8;--sh:rgba(0,0,0,.08)}
+[data-theme=dark]{color-scheme:dark;--bg:#0f172a;--fg:#e2e8f0;--cd:#1e293b;--bd:#334155;--in:#0f172a;--bl:#3b82f6;--hn:#94a3b8;--gb:#334155;--gf:#e2e8f0;--rb:#1e293b;--ab:#1e3a5f;--ds:#334155;--df:#64748b;--sh:rgba(0,0,0,.4)}
+*{box-sizing:border-box}
+body{font:13px/1.4 system-ui,"Microsoft JhengHei",sans-serif;margin:0;padding:0 14px 14px;background:var(--bg);color:var(--fg)}
+#bar{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:6px;padding:8px 14px;margin:0 -14px 8px;background:var(--cd);border-bottom:1px solid var(--bd);flex-wrap:wrap;box-shadow:0 1px 3px var(--sh)}
+#bar h1{font-size:14px;margin:0;white-space:nowrap}
+.sp{flex:1}
+button,label.fb{padding:6px 11px;border:0;border-radius:6px;background:var(--bl);color:#fff;cursor:pointer;font:inherit;font-size:13px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+button:disabled{background:var(--df);cursor:not-allowed}
+button.g,label.fb.g{background:var(--gb);color:var(--gf)}
+label.fb input{display:none}
+select{padding:5px 7px;border:1px solid var(--bd);border-radius:6px;background:var(--in);color:var(--fg);font:inherit;font-size:13px}
+.tabs{display:flex;gap:2px;background:var(--gb);padding:2px;border-radius:7px}
+.tab{background:0;color:var(--gf);padding:5px 12px;font-size:13px;border-radius:5px}
+.tab.on{background:var(--cd);box-shadow:0 1px 2px var(--sh)}
+#st{font-size:12px;color:var(--hn);margin-bottom:8px;min-height:16px}
+.pnl{display:none}.pnl.on{display:block}
+.cd{background:var(--cd);border-radius:9px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px var(--sh)}
+input[type=text],input[type=date]{padding:5px 8px;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:13px;background:var(--in);color:var(--fg)}
+#main{display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);gap:10px;align-items:start}
+#pages{display:flex;flex-direction:column;gap:5px;min-width:0}
+.row{display:flex;align-items:center;gap:7px;background:var(--rb);border:1px solid var(--bd);border-radius:8px;padding:5px 9px;flex-wrap:wrap;transition:border-color .15s,background .15s}
+.row:hover,.row.sel{border-color:var(--bl);background:var(--ab)}
+.row.att{border-left:4px solid var(--bl)}
+.row.att .tm,.row.att .start,.row.att .end{background:var(--ds);color:var(--df)}
+.row.att .abtn{background:#fee2e2;color:#b91c1c}
+.pno{min-width:26px;font-size:12px;color:var(--hn);flex:none;text-align:center;font-weight:600}
+.thumb{width:52px;border:1px solid var(--bd);border-radius:4px;background:#fafafa;display:block;flex:none}
+.pick{width:15px;height:15px;flex:none;accent-color:var(--bl)}
+.tm{width:88px}.start,.end{width:120px}
+.abtn{font-size:11px;padding:4px 8px}
+#pv{position:sticky;top:60px;background:var(--cd);border:1px solid var(--bd);border-radius:9px;padding:8px;max-height:calc(100vh - 80px);overflow:auto;min-width:0}
+#pv img{width:100%;display:block;border-radius:6px}
+#pv .ph{color:var(--hn);font-size:12px;text-align:center;padding:24px 8px}
+.hint{font-size:12px;color:var(--hn);margin:5px 0 0}
+#help h3{margin:12px 0 5px;font-size:14px}
+#help p{margin:5px 0}#help ol,#help ul{margin:5px 0;padding-left:20px}
+#help li{margin:2px 0}
+code{background:var(--gb);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px}
+@media(max-width:860px){#bar h1{display:none}#main{grid-template-columns:1fr}#pv{position:static;max-height:50vh}}
+</style>
+</head>
+<body>
+<header id=bar>
+<h1 data-i=title></h1>
+<nav class=tabs><button class="tab on" data-tab=tool data-i=tabTool></button><button class=tab data-tab=help data-i=tabHelp></button></nav>
+<label class="fb g" id=fileLabel title="PDF / JPG / PNG / TIFF"><input type=file id=fileInput multiple accept="application/pdf,image/*,.tif,.tiff"><span data-i=fileBtn></span></label>
+<div class=sp></div>
+<button id=genBtn disabled data-i=genBtn></button>
+<button id=mergeBtn class=g disabled data-i=mergeBtn></button>
+<select id=lang><option value=zh-TW>繁中</option><option value=en>EN</option></select>
+<button id=themeBtn class=g>🌙</button>
+</header>
+<div id=st></div>
+<div id=tool class="pnl on">
+<div id=main><div id=pages></div><aside id=pv><div class=ph data-i=pvHint></div></aside></div>
+</div>
+<div id=help class=pnl><div class=cd id=helpBody></div></div>
+
+<!-- ==== UTIF.js (TIFF decoder, MIT, by Ivan Kuckir / Photopea) ====
+     要完全離線：下載 UTIF.min.js 放到同目錄，把下面這行改成
+     <script src="UTIF.min.js"></script> 並刪掉 data-offline 屬性 -->
+<script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.min.js" data-offline="utif"></script>
+
+<script src=https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js></script>
+<script>
+const{PDFDocument}=PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+
+const I18N={
+'zh-TW':{
+title:'PDF 分割',tabTool:'工具',tabHelp:'說明',
+fileBtn:'📁 選擇檔案',
+pvHint:'將滑鼠移到左側任一頁面以預覽',
+genBtn:'產生 ZIP',mergeBtn:'合併已勾選',
+tmPh:'TM',startT:'開始日期',endT:'結束日期（預設同開始）',
+attach:'↳ 與上頁同組',detach:'↺ 取消同組',
+pick:'勾選後可單獨合併成一個 PDF',
+reading:'讀取中…',loaded:'已載入 {n} 頁',readErr:'讀取失敗：',
+noTM:'請至少為一組填 TM 與開始日期',
+skipConfirm:'有 {n} 組未填完整，將被忽略。繼續？',
+generating:'產生中…',done:'完成！共 {n} 個 PDF，已下載 ZIP。',genErr:'產生失敗：',
+noPick:'請至少勾選一頁',mergeOk:'已下載合併檔',
+cannotAttach:'第 1 頁無法與上頁同組',
+endBeforeStart:'結束日期不能早於開始日期',
+noUTIF:'TIFF 解碼器載入失敗，請檢查網路或改用離線版 UTIF.min.js',
+tiffErr:'TIFF 讀取失敗：',
+help:`<h3>如何使用</h3><ol>
+<li><b>載入檔案</b>：點頂部「📁 選擇檔案」，可一次選多個 PDF、圖片或 TIFF，系統會依序合併成一份文件。支援 <code>.pdf</code>、<code>.jpg</code>、<code>.png</code>、<code>.tif / .tiff</code>（含多頁 TIFF）。</li>
+<li><b>填寫 TM</b>：每頁左側是頁碼，旁邊有勾選框、縮圖、TM、開始日期、結束日期。TM 是員工編號；純數字會自動補足 6 位（<code>501835</code> 保持不變、<code>12345</code> 變成 <code>012345</code>）。</li>
+<li><b>多頁同組</b>：若第 2、3 頁要與第 1 頁合併成同一 PDF，在那些頁點「↳ 與上頁同組」，該頁 TM 與日期會變灰並跟隨上一頁。</li>
+<li><b>日期範圍</b>：結束日期預設等於開始日期。若填不同的結束日期，檔名會變成 <code>TM_開始_結束.pdf</code>。</li>
+<li><b>右側預覽</b>：滑鼠移到左側任一頁，右側會顯示該頁大圖，寬度隨瀏覽器自動調整。</li>
+<li><b>產生 ZIP</b>：按頂部「產生 ZIP」，所有分組 PDF 會打包下載。</li></ol>
+<h3>檔名規則</h3><ul>
+<li>開始＝結束：<code>501835_20261001.pdf</code></li>
+<li>開始≠結束：<code>501835_20261001_20261025.pdf</code></li>
+<li>TM 補零：不足 6 位數字前面補 <code>0</code></li></ul>
+<h3>其他</h3><ul>
+<li><b>合併已勾選</b>：只想挑某幾頁合併成單一 PDF，勾選左側方框再按頂部「合併已勾選」。</li>
+<li><b>主題</b>：右上角 🌙 / ☀️ 切換淺色／深色。</li>
+<li><b>語言</b>：右上角切換繁中／English。</li>
+<li><b>離線</b>：將四個 CDN 的 <code>.js</code>（utif、pdf-lib、pdf.js、jszip）下載到本機，改為相對路徑即可。</li></ul>`
+},
+'en':{
+title:'PDF Split',tabTool:'Tool',tabHelp:'Help',
+fileBtn:'📁 Choose files',
+pvHint:'Hover a page on the left to preview here',
+genBtn:'Generate ZIP',mergeBtn:'Merge checked',
+tmPh:'TM',startT:'Start date',endT:'End date (defaults to start)',
+attach:'↳ Same group as above',detach:'↺ Detach',
+pick:'Check to merge into a standalone PDF',
+reading:'Reading…',loaded:'Loaded {n} page(s)',readErr:'Read failed: ',
+noTM:'Fill TM and start date for at least one group',
+skipConfirm:'{n} group(s) incomplete and will be skipped. Continue?',
+generating:'Generating…',done:'Done! {n} PDF(s), ZIP downloaded.',genErr:'Failed: ',
+noPick:'Check at least one page',mergeOk:'Merged file downloaded',
+cannotAttach:'Page 1 cannot attach to previous',
+endBeforeStart:'End date cannot be earlier than start date',
+noUTIF:'TIFF decoder failed to load. Check network or use offline UTIF.min.js',
+tiffErr:'TIFF read failed: ',
+help:`<h3>How to use</h3><ol>
+<li><b>Load files</b>: click "📁 Choose files" in the top bar and pick one or more PDFs, images or TIFFs. They are merged in order into a single source document. Supports <code>.pdf</code>, <code>.jpg</code>, <code>.png</code>, <code>.tif / .tiff</code> (including multi-page TIFF).</li>
+<li><b>Fill TM</b>: each row shows the page number on the left, then checkbox, thumbnail, TM, Start Date, End Date. TM is the employee ID; pure digits are auto-padded to 6 characters (<code>501835</code> stays, <code>12345</code> becomes <code>012345</code>).</li>
+<li><b>Multi-page groups</b>: to merge pages 2, 3 with page 1, click "↳ Same group as above" on those pages. Their TM and dates grey out and follow the previous page.</li>
+<li><b>Date range</b>: End date defaults to the Start date. If you set a different End date, the filename becomes <code>TM_start_end.pdf</code>.</li>
+<li><b>Right preview</b>: hover any row on the left; the right panel shows its large preview. Its width adapts automatically to the browser width.</li>
+<li><b>Generate ZIP</b>: click "Generate ZIP" in the top bar to package all group PDFs.</li></ol>
+<h3>Filename rules</h3><ul>
+<li>Same start/end: <code>501835_20261001.pdf</code></li>
+<li>Different: <code>501835_20261001_20261025.pdf</code></li>
+<li>TM zero-pad: numbers shorter than 6 digits get leading <code>0</code></li></ul>
+<h3>Others</h3><ul>
+<li><b>Merge checked</b>: tick checkboxes on the left, then click "Merge checked" in the top bar.</li>
+<li><b>Theme</b>: toggle light/dark at top-right.</li>
+<li><b>Language</b>: switch 繁中 / English at top-right.</li>
+<li><b>Offline</b>: download the four CDN <code>.js</code> files (utif, pdf-lib, pdf.js, jszip) locally and change to relative paths.</li></ul>`
+}};
+
+let lang='zh-TW';
+const t=(k,v)=>{const s=I18N[lang][k];if(typeof s!=='string')return k;return s.replace(/\{(\w+)\}/g,(_,n)=>v?.[n]??'');};
+
+function applyLang(){
+  document.documentElement.lang=lang;
+  $$('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));
+  $('#helpBody').innerHTML=t('help');
+  $$('#pages .row').forEach(r=>r._i18n&&r._i18n());
+  const pv=$('#pv');
+  if(!pv.querySelector('img'))pv.innerHTML=`<div class=ph>${t('pvHint')}</div>`;
+}
+
+function setTheme(th){
+  document.documentElement.dataset.theme=th;
+  $('#themeBtn').textContent=th==='dark'?'☀️':'🌙';
+  localStorage.setItem('theme',th);
+}
+$('#themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+$('#lang').onchange=e=>{lang=e.target.value;localStorage.setItem('lang',lang);applyLang();};
+
+$$('.tab').forEach(b=>b.onclick=()=>{
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('.pnl').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');$('#'+b.dataset.tab).classList.add('on');
+});
+
+let srcBytes=null;
+const today=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;};
+const fmtD=d=>String(d||'').replace(/-/g,'');
+const setStatus=s=>$('#st').textContent=s;
+
+function fname(tm,s,e){
+  const dig=String(tm).replace(/\D/g,'');
+  if(!dig)return null;
+  const sF=fmtD(s);if(!sF)return null;
+  const eF=fmtD(e||s),tmP=dig.padStart(6,'0');
+  return eF&&eF!==sF?`${tmP}_${sF}_${eF}.pdf`:`${tmP}_${sF}.pdf`;
+}
+function dl(blob,name){
+  const u=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=u;a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+
+/* ---------- TIFF -> PDF pages (via UTIF.js) ---------- */
+async function addTiffPages(out,buf,fileName){
+  if(!window.UTIF) throw new Error(t('noUTIF'));
+  const ifds=UTIF.decode(buf);
+  if(!ifds||!ifds.length) throw new Error(t('tiffErr')+'no IFD');
+
+  // 只保留有寬高的 IFD，並排除縮圖
+  let cands=ifds.filter(im=>im.t256&&im.t257&&im.t256[0]&&im.t257[0]);
+  if(!cands.length) throw new Error(t('tiffErr')+'no image IFD');
+
+  // 排除 NewSubfileType bit0 = 1（reduced-resolution / 縮圖）
+  const noThumb=cands.filter(im=>!(im.t254&&(im.t254[0]&1)===1));
+  if(noThumb.length) cands=noThumb;
+
+  // 面積門檻：小於最大面積 25% 者視為縮圖
+  const maxArea=Math.max(...cands.map(im=>im.t256[0]*im.t257[0]));
+  const pages=cands.filter(im=>im.t256[0]*im.t257[0]>=maxArea*0.25);
+
+  let added=0;
+  for(const im of pages){
+    try{
+      UTIF.decodeImage(buf,im,ifds);
+      const rgba=UTIF.toRGBA8(im);
+      const w=im.width,h=im.height;
+      if(!w||!h) continue;
+      const cnv=document.createElement('canvas');
+      cnv.width=w;cnv.height=h;
+      const ctx=cnv.getContext('2d');
+      ctx.putImageData(new ImageData(
+        new Uint8ClampedArray(rgba.buffer,rgba.byteOffset,rgba.length),w,h),0,0);
+      const pb=await new Promise(r=>cnv.toBlob(r,'image/png'));
+      const img=await out.embedPng(new Uint8Array(await pb.arrayBuffer()));
+      const s=Math.min(1,595/img.width,842/img.height);
+      const pw=img.width*s,ph=img.height*s;
+      out.addPage([pw,ph]).drawImage(img,{x:0,y:0,width:pw,height:ph});
+      added++;
+    }catch(err){ console.warn('TIFF page skipped:',err); }
+  }
+  if(!added) throw new Error(t('tiffErr')+fileName);
+  return added;
+}
+
+$('#fileInput').addEventListener('change',async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  setStatus(t('reading'));
+  try{
+    const out=await PDFDocument.create();
+    for(const f of files){
+      const buf=await f.arrayBuffer();
+      if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
+        const src=await PDFDocument.load(buf,{ignoreEncryption:true});
+        (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p));
+      }
+      else if(/\.(tif|tiff)$/i.test(f.name)||f.type==='image/tiff'){
+        await addTiffPages(out,buf,f.name);
+      }
+      else if(f.type.startsWith('image/')){
+        let img;
+        if(f.type==='image/jpeg')img=await out.embedJpg(new Uint8Array(buf));
+        else if(f.type==='image/png')img=await out.embedPng(new Uint8Array(buf));
+        else{
+          const bmp=await createImageBitmap(new Blob([buf],{type:f.type}));
+          const c=document.createElement('canvas');c.width=bmp.width;c.height=bmp.height;
+          c.getContext('2d').drawImage(bmp,0,0);
+          const pb=await new Promise(r=>c.toBlob(r,'image/png'));
+          img=await out.embedPng(new Uint8Array(await pb.arrayBuffer()));
+        }
+        const s=Math.min(1,595/img.width,842/img.height);
+        const w=img.width*s,h=img.height*s;
+        out.addPage([w,h]).drawImage(img,{x:0,y:0,width:w,height:h});
+      }
+      else if(/\.(dng|cr2|nef|arw|raf|rw2)$/i.test(f.name)){
+        // RAW 檔也走 UTIF
+        await addTiffPages(out,buf,f.name);
+      }
+    }
+    srcBytes=await out.save();
+    await buildRows();
+    setStatus(t('loaded',{n:out.getPageCount()}));
+    e.target.value='';   // 允許再次選同一批檔案
+  }catch(err){console.error(err);setStatus(t('readErr')+err.message);}
+});
+
+async function buildRows(){
+  const box=$('#pages');box.innerHTML='';
+  const pdf=await pdfjsLib.getDocument({data:srcBytes.slice()}).promise;
+  const d0=today();
+  const pv=$('#pv');
+  pv.innerHTML=`<div class=ph>${t('pvHint')}</div>`;
+  let curIdx=-1;
+
+  for(let i=1;i<=pdf.numPages;i++){
+    const pg=await pdf.getPage(i);
+    const vS=pg.getViewport({scale:.25});
+    const cS=document.createElement('canvas');
+    cS.width=Math.ceil(vS.width);cS.height=Math.ceil(vS.height);
+    await pg.render({canvasContext:cS.getContext('2d'),viewport:vS}).promise;
+
+    const vL=pg.getViewport({scale:1.5});
+    const cL=document.createElement('canvas');
+    cL.width=Math.ceil(vL.width);cL.height=Math.ceil(vL.height);
+    await pg.render({canvasContext:cL.getContext('2d'),viewport:vL}).promise;
+
+    const row=document.createElement('div');
+    row.className='row';
+    row.innerHTML=`<span class=pno>${i}</span>
+      <input type=checkbox class=pick>
+      <img class=thumb src="${cS.toDataURL('image/jpeg',.6)}">
+      <input class=tm type=text inputmode=numeric>
+      <input class=start type=date value="${d0}">
+      <input class=end type=date value="${d0}">
+      ${i>1?'<button class="abtn g" type=button></button>':''}`;
+    box.appendChild(row);
+    row._big=cL.toDataURL('image/jpeg',.85);
+
+    row._i18n=()=>{
+      row.querySelector('.tm').placeholder=t('tmPh');
+      row.querySelector('.start').title=t('startT');
+      row.querySelector('.end').title=t('endT');
+      row.querySelector('.pick').title=t('pick');
+      const ab=row.querySelector('.abtn');
+      if(ab)ab.textContent=row.classList.contains('att')?t('detach'):t('attach');
+    };
+    row._i18n();
+
+    row.addEventListener('mouseenter',()=>{
+      if(curIdx===i)return;
+      curIdx=i;
+      pv.innerHTML=`<img src="${row._big}">`;
+      $$('#pages .row').forEach(r=>r.classList.remove('sel'));
+      row.classList.add('sel');
+    });
+
+    const se=row.querySelector('.start'),ee=row.querySelector('.end');
+    let touched=false;
+    ee.addEventListener('input',()=>touched=true);
+    se.addEventListener('change',()=>{if(!touched||!ee.value)ee.value=se.value;});
+    ee.addEventListener('change',()=>{if(ee.value&&ee.value<se.value){alert(t('endBeforeStart'));ee.value=se.value;}});
+
+    const ab=row.querySelector('.abtn');
+    if(ab)ab.onclick=e=>{e.stopPropagation();toggleAtt(row);};
+  }
+  $('#genBtn').disabled=false;$('#mergeBtn').disabled=false;
+}
+
+function toggleAtt(row){
+  const rows=$$('#pages .row'),idx=rows.indexOf(row);
+  if(!row.classList.contains('att')){
+    if(idx===0){alert(t('cannotAttach'));return;}
+    row.classList.add('att');
+    row.querySelectorAll('.tm,.start,.end').forEach(el=>el.disabled=true);
+  }else{
+    row.classList.remove('att');
+    row.querySelectorAll('.tm,.start,.end').forEach(el=>el.disabled=false);
+  }
+  row._i18n();
+}
+
+$('#genBtn').onclick=async()=>{
+  const rows=$$('#pages .row'),groups=[];
+  rows.forEach((r,i)=>{
+    if(r.classList.contains('att')&&groups.length)groups[groups.length-1].ix.push(i);
+    else groups.push({lead:r,ix:[i]});
+  });
+  const valid=[],skip=[];
+  for(const g of groups){
+    const tm=g.lead.querySelector('.tm').value.trim();
+    const s=g.lead.querySelector('.start').value;
+    const e=g.lead.querySelector('.end').value||s;
+    const n=fname(tm,s,e);
+    if(!n){skip.push(g);continue;}
+    valid.push({ix:g.ix,n});
+  }
+  if(!valid.length){alert(t('noTM'));return;}
+  if(skip.length&&!confirm(t('skipConfirm',{n:skip.length})))return;
+
+  $('#genBtn').disabled=true;setStatus(t('generating'));
+  try{
+    const sd=await PDFDocument.load(srcBytes);
+    const zip=new JSZip(),used=new Map();
+    let cnt=0;
+    for(const g of valid){
+      const doc=await PDFDocument.create();
+      (await doc.copyPages(sd,g.ix)).forEach(p=>doc.addPage(p));
+      const bytes=await doc.save();
+      const base=g.n.replace(/\.pdf$/i,'');
+      const c=(used.get(base)||0)+1;used.set(base,c);
+      zip.file(c>1?`${base}(${c}).pdf`:`${base}.pdf`,bytes);
+      cnt++;
+    }
+    dl(await zip.generateAsync({type:'blob'}),`split_${today()}.zip`);
+    setStatus(t('done',{n:cnt}));
+  }catch(err){console.error(err);setStatus(t('genErr')+err.message);}
+  finally{$('#genBtn').disabled=false;}
+};
+
+$('#mergeBtn').onclick=async()=>{
+  const picked=$$('#pages .row').map((r,i)=>r.querySelector('.pick').checked?i:-1).filter(i=>i>=0);
+  if(!picked.length){alert(t('noPick'));return;}
+  const sd=await PDFDocument.load(srcBytes);
+  const doc=await PDFDocument.create();
+  (await doc.copyPages(sd,picked)).forEach(p=>doc.addPage(p));
+  dl(new Blob([await doc.save()],{type:'application/pdf'}),`merged_${picked.length}p.pdf`);
+  setStatus(t('mergeOk'));
+};
+
+setTheme(localStorage.getItem('theme')||'light');
+const sl=localStorage.getItem('lang');if(sl){lang=sl;$('#lang').value=lang;}
+applyLang();
+
+// 啟動檢查：UTIF 若載入失敗，提示但不中斷 PDF 功能
+window.addEventListener('load',()=>{
+  if(!window.UTIF) console.warn(t('noUTIF'));
+});
+</script>
+</body>
+</html>

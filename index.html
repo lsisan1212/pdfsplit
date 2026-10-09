@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang=zh-TW data-theme=light>
+<head>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>PDFSplit · 工具入口</title>
+<style>
+:root{--bg:#f5f6f8;--fg:#1f2937;--cd:#fff;--bd:#e3e6ea;--bl:#2563eb;--hn:#64748b;--gb:#eef1f5;--gf:#1f2937;--sh:rgba(0,0,0,.08)}
+[data-theme=dark]{color-scheme:dark;--bg:#0f172a;--fg:#e2e8f0;--cd:#1e293b;--bd:#334155;--bl:#3b82f6;--hn:#94a3b8;--gb:#334155;--gf:#e2e8f0;--sh:rgba(0,0,0,.4)}
+[data-theme=ocean]{color-scheme:dark;--bg:#04293a;--fg:#d7f0ff;--cd:#064663;--bd:#0a5c7a;--bl:#2dd4bf;--hn:#7dd3fc;--gb:#075985;--gf:#d7f0ff;--sh:rgba(0,0,0,.45)}
+[data-theme=sunset]{color-scheme:light;--bg:#fff7ed;--fg:#431407;--cd:#fff;--bd:#fed7aa;--bl:#ea580c;--hn:#9a3412;--gb:#ffedd5;--gf:#431407;--sh:rgba(124,45,18,.12)}
+*{box-sizing:border-box}
+body{font:14px/1.5 system-ui,"Microsoft JhengHei",sans-serif;margin:0;padding:0 18px 40px;background:var(--bg);color:var(--fg)}
+header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;margin:0 -18px 18px;background:var(--cd);border-bottom:1px solid var(--bd);box-shadow:0 1px 4px var(--sh)}
+header h1{font-size:18px;margin:0;flex:none}
+header .sub{font-size:12px;color:var(--hn)}
+.sp{flex:1}
+input#q{padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;min-width:200px}
+.seg{display:flex;gap:4px;background:var(--gb);padding:3px;border-radius:9px}
+.seg button{background:0;border:0;color:var(--gf);padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px}
+.seg button.on{background:var(--cd);box-shadow:0 1px 2px var(--sh)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.card{display:flex;flex-direction:column;gap:8px;background:var(--cd);border:1px solid var(--bd);border-left:4px solid var(--accent,var(--bl));border-radius:12px;padding:16px;text-decoration:none;color:inherit;transition:transform .12s,box-shadow .12s}
+.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px var(--sh)}
+.card .top{display:flex;align-items:center;gap:10px}
+.card .emoji{font-size:26px;line-height:1}
+.card .title{font-size:16px;font-weight:600}
+.card .titleZh{font-size:12px;color:var(--hn);margin-left:6px;font-weight:400}
+.card .desc{font-size:13px;color:var(--hn);min-height:38px}
+.card .tags{display:flex;flex-wrap:wrap;gap:6px}
+.card .tag{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--gb);color:var(--gf)}
+.empty{text-align:center;color:var(--hn);padding:40px 10px;font-size:14px}
+.addhint{margin-top:18px;font-size:13px;color:var(--hn);background:var(--cd);border:1px dashed var(--bd);border-radius:10px;padding:14px 16px}
+code{background:var(--gb);padding:1px 6px;border-radius:4px;font-family:monospace;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📄 PDFSplit</h1>
+  <span class=sub>PDF / 圖片 / TIFF 分割合併工具入口</span>
+  <span class=sp></span>
+  <input id=q placeholder="搜尋…" aria-label=搜尋>
+  <div class=seg id=themeSeg>
+    <button data-th=light>☀️</button>
+    <button data-th=dark>🌙</button>
+    <button data-th=ocean>🌊</button>
+    <button data-th=sunset>🌅</button>
+  </div>
+</header>
+
+<div class=grid id=grid></div>
+<div class=empty id=empty style="display:none"></div>
+<div class=addhint>
+  想加新子頁？將 <code>.html</code> 丟進根目錄，再喺 <code>tools.json</code> 加一項即可
+  （漏改 JSON 亦會自動偵測顯示）。
+</div>
+
+<script>
+const OWNER='lsisan1212', REPO='pdfsplit';
+const FALLBACK=[
+  {file:'pdfSplit.html',title:'PDF Split',titleZh:'PDF 分割',desc:'上傳 PDF/圖片/TIFF，按 TM 與日期範圍分割、合併、打包 ZIP。',emoji:'🗂️',accent:'#2563eb',tags:['PDF','TIFF','分割','合併']}
+];
+const grid=document.getElementById('grid'),empty=document.getElementById('empty'),q=document.getElementById('q');
+let ITEMS=[];
+
+function render(list){
+  const kw=(q.value||'').toLowerCase();
+  const f=list.filter(i=>(i.title+''+(i.titleZh||'')+''+(i.desc||'')+''+(i.tags||[]).join(' ')+''+(i.file||'')).toLowerCase().includes(kw));
+  grid.innerHTML='';
+  if(!f.length){empty.style.display='block';empty.textContent='搵唔到符合嘅工具';return;}
+  empty.style.display='none';
+  f.forEach(i=>{
+    const c=document.createElement('a');
+    c.className='card';c.href=i.file;c.style.setProperty('--accent',i.accent||'var(--bl)');
+    c.innerHTML=`<div class=top><span class=emoji>${i.emoji||'🔧'}</span>
+      <span class=title>${i.title}${i.titleZh?`<span class=titleZh>${i.titleZh}</span>`:''}</span></div>
+      <div class=desc>${i.desc||''}</div>
+      <div class=tags>${(i.tags||[]).map(t=>`<span class=tag>${t}</span>`).join('')}</div>`;
+    grid.appendChild(c);
+  });
+}
+
+async function load(){
+  try{
+    const r=await fetch('tools.json',{cache:'no-store'});
+    if(r.ok){const j=await r.json();ITEMS=j.tools||j.trainings||FALLBACK;}
+    else ITEMS=FALLBACK;
+  }catch(e){ITEMS=FALLBACK;}
+  // 自動偵測：補上根目錄漏加 JSON 嘅 *Split*.html
+  try{
+    const c=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents`,{cache:'no-store'});
+    if(c.ok){
+      const files=await c.json();
+      const names=new Set(ITEMS.map(i=>i.file));
+      files.filter(f=>f.name.endsWith('.html')&&f.name!=='index.html'&&!names.has(f.name)).forEach(f=>{
+        const base=f.name.replace(/\.html$/i,'');
+        ITEMS.push({file:f.name,title:base,emoji:'🔧',accent:'#2563eb',tags:['tool']});
+      });
+    }
+  }catch(e){}
+  render(ITEMS);
+}
+
+// 主題
+const seg=document.getElementById('themeSeg');
+function setTheme(th){document.documentElement.dataset.theme=th;localStorage.setItem('theme',th);
+  [...seg.children].forEach(b=>b.classList.toggle('on',b.dataset.th===th));}
+[...seg.children].forEach(b=>b.onclick=()=>setTheme(b.dataset.th));
+setTheme(localStorage.getItem('theme')||'light');
+q.addEventListener('input',()=>render(ITEMS));
+
+load();
+</script>
+</body>
+</html>
